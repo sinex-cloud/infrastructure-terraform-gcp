@@ -1,0 +1,37 @@
+version: 1.0
+
+project:
+  project_short_name: data-platform-aab
+
+additional_project_permissions:
+  - role: viewer
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+        - anwar.brini.ar@gmail.com
+      groups: []
+      service_accounts: []
+
+managed_datasets:
+  platform_analytics:
+    location: EU
+    permissions:
+      - role: bigquery.dataViewer
+        members:
+          users:
+            - ahmed.brini.ar@gmail.com
+            - anwar.brini.ar@gmail.com
+          groups: []
+          service_accounts: []
+
+buckets:
+  raw-data:
+    location: EU
+    permissions:
+      - role: storage.objectViewer
+        members:
+          users:
+            - ahmed.brini.ar@gmail.com
+            - anwar.brini.ar@gmail.com
+          groups: []
+          service_accounts: []

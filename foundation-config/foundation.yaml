@@ -2,36 +2,79 @@ version: 1.0
 
 project:
   project_short_name: data-platform-aab
+  environments: [dev, int]
 
 additional_project_permissions:
   - role: viewer
+    environments: [dev, int]
     members:
       users:
         - ahmed.brini.ar@gmail.com
         - anwar.brini.ar@gmail.com
-      groups: []
-      service_accounts: []
+
+  - role: bigquery.jobUser
+    environments: [dev]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+
+  - role: run.admin
+    environments: [dev]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+
+  - role: cloudbuild.builds.editor
+    environments: [dev]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+  - role: storage.admin
+    environments: [dev]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+        
+  - role: secretmanager.secretAccessor
+    environments: [dev]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+
+  - role: run.viewer
+    environments: [int]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+
+  - role: run.invoker
+    environments: [int]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+
+  - role: cloudbuild.builds.viewer
+    environments: [int]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
 
 managed_datasets:
   platform_analytics:
-    location: EU
+    location: europe-west1
     permissions:
       - role: bigquery.dataViewer
         members:
           users:
             - ahmed.brini.ar@gmail.com
             - anwar.brini.ar@gmail.com
-          groups: []
-          service_accounts: []
 
 buckets:
   raw-data:
-    location: EU
+    location: europe-west1
     permissions:
       - role: storage.objectViewer
         members:
           users:
             - ahmed.brini.ar@gmail.com
             - anwar.brini.ar@gmail.com
-          groups: []
-          service_accounts: []

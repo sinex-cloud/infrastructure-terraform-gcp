@@ -1,17 +1,44 @@
 version: 1.0
 
-project:
-  project_short_name: data-platform-aab
-  environments: [dev, int]
+# Static metadata applied as labels to every labellable resource.
+# `environment`, `managed_by` and `component` are derived by the module.
+labels:
+  platform: data-platform
+  owner: data-engineering
+  application: infra-review
+  data_classification: internal
 
 additional_project_permissions:
-  - role: viewer
+  # --- Baseline read access (replaces the basic roles/viewer grant) ---
+  - role: browser
     environments: [dev, int]
     members:
       users:
         - ahmed.brini.ar@gmail.com
         - anwar.brini.ar@gmail.com
 
+  - role: logging.viewer
+    environments: [dev, int]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+        - anwar.brini.ar@gmail.com
+
+  - role: monitoring.viewer
+    environments: [dev, int]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+        - anwar.brini.ar@gmail.com
+
+  - role: bigquery.metadataViewer
+    environments: [dev, int]
+    members:
+      users:
+        - ahmed.brini.ar@gmail.com
+        - anwar.brini.ar@gmail.com
+
+  # --- dev: build and deploy the review agent ---
   - role: bigquery.jobUser
     environments: [dev]
     members:
@@ -29,18 +56,20 @@ additional_project_permissions:
     members:
       users:
         - ahmed.brini.ar@gmail.com
+
   - role: storage.admin
     environments: [dev]
     members:
       users:
         - ahmed.brini.ar@gmail.com
-        
+
   - role: secretmanager.secretAccessor
     environments: [dev]
     members:
       users:
         - ahmed.brini.ar@gmail.com
 
+  # --- int: read-only inspection of the deployed agent ---
   - role: run.viewer
     environments: [int]
     members:
@@ -62,6 +91,7 @@ additional_project_permissions:
 managed_datasets:
   platform_analytics:
     location: europe-west1
+    environments: [dev, int]
     permissions:
       - role: bigquery.dataViewer
         members:
@@ -72,6 +102,7 @@ managed_datasets:
 buckets:
   raw-data:
     location: europe-west1
+    environments: [dev, int]
     permissions:
       - role: storage.objectViewer
         members:

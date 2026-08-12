@@ -1,0 +1,31 @@
+steps:
+  - id: terraform-fmt
+    name: hashicorp/terraform:1.15.8
+    args: ['fmt', '-check', '-recursive']
+
+  - id: terraform-init
+    name: hashicorp/terraform:1.15.8
+    args: ['init', '-backend-config=environments/dev.tfbackend']
+
+  - id: terraform-validate
+    name: hashicorp/terraform:1.15.8
+    args: ['validate']
+
+  - id: terraform-plan
+    name: hashicorp/terraform:1.15.8
+    args: ['plan', '-var-file=environments/dev.tfvars', '-out=tfplan']
+
+  - id: terraform-plan-json
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    args: ['-c', 'terraform show -json tfplan > plan.json']
+
+  - id: policy-checks
+    name: python:3.12-slim
+    entrypoint: python3
+    args: ['scripts/policy_checks.py', 'plan.json']
+
+serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/sa-cb-plan-dev@$PROJECT_ID.iam.gserviceaccount.com'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -2,15 +2,15 @@
 """Deterministic policy checks against a `terraform show -json` plan.
 
 Reads the plan JSON, walks resource_changes, and reports findings as
-structured JSON (see PROJECT_SCOPE.md section 15). This script never fails
-the build on its own -- it reports "status": "failed" when high-severity
-findings exist, and the PR-comment step decides what to do with that.
-Blocking is a human-in-the-loop decision at PR review, not a hard gate here.
+structured JSON. This script never fails the build on its own -- it reports
+"status": "failed" when high-severity findings exist, and the PR-comment
+step decides what to do with that. Blocking is a human-in-the-loop decision
+at PR review, not a hard gate here.
 
 ponytail: naming-convention and "direct resource vs module" checks are not
-implemented -- root-level Terraform is a deliberate Phase 1 simplification
-(see phase_plan_and_env_drift memory), so a generic direct-resource rule
-would just flag known-good files. Add scoped rules if that changes.
+implemented -- some root-level Terraform here is intentional, not a mistake,
+so a generic direct-resource rule would just flag known-good files. Add
+scoped rules if that changes.
 """
 import json
 import sys

@@ -6,3 +6,4 @@ module "data_platform" {
   project                      = var.project
 }
 
+# test: verify review pipeline end-to-end

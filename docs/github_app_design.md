@@ -54,7 +54,7 @@ updated.
 ## Secret management
 
 Two secrets in Secret Manager, both created as **empty containers by Terraform**
-(`platform_secrets.tf`) with values added by hand afterward — values never enter
+(`agent-hosting/secrets.tf`) with values added by hand afterward — values never enter
 Terraform state or git history:
 
 | Secret | Contents | Populated |
@@ -67,7 +67,7 @@ the Phase 3 AI review layer — not yet populated, not yet used.
 
 The Cloud Run runtime service account (`sa-agent-review-dev`) has
 `roles/secretmanager.secretAccessor` on exactly these two secrets (bucket/secret-scoped
-IAM, not project-wide) — see `platform_iam.tf`.
+IAM, not project-wide) — see `agent-hosting/agent_iam.tf`.
 
 ## Authentication flow (design; not yet implemented in code)
 

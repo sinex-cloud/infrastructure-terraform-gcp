@@ -42,7 +42,7 @@ feature is also cut for this phase.
 ## Webhook endpoint
 
 ```
-https://infra-review-agent-dev-gi27pyudra-ew.a.run.app/webhook/github
+https://infra-review-agent-dev-654528170038.europe-west1.run.app/webhook/github
 ```
 
 Path is `/webhook/github` specifically (not just `/webhook`) — matches the route
@@ -65,25 +65,29 @@ Terraform state or git history:
 A third secret, `infra-agent-model-api-key-dev`, exists as an empty container for
 the Phase 3 AI review layer — not yet populated, not yet used.
 
-The Cloud Run runtime service account (`sa-agent-review-dev`) has
-`roles/secretmanager.secretAccessor` on exactly these two secrets (bucket/secret-scoped
-IAM, not project-wide) — see `agent-hosting/agent_iam.tf`.
+Two service accounts have `roles/secretmanager.secretAccessor` on
+`infra-agent-github-app-key-dev` — `sa-agent-review-dev` (Cloud Run) and
+`sa-cb-plan-dev` (Cloud Build). Only `sa-cb-plan-dev` actually mints a JWT with
+it today (see "How PR comments are posted" below); the Cloud Run agent's grant
+is unused until Checks-status updates need it.
 
-## Authentication flow (design; not yet implemented in code)
+## Authentication flow
 
 GitHub Apps authenticate in two steps, not with a single static token:
 
-1. The agent signs a short-lived JWT (RS256, `iss` = App ID `4388945`, `exp` ≈ 10
-   minutes) using the private key from `infra-agent-github-app-key-dev`. This JWT
-   authenticates as the **App itself**.
-2. The agent exchanges that JWT for a short-lived **installation access token**
-   via `POST /app/installations/{installation_id}/access_tokens`. This token
-   authenticates as the **App acting on a specific repo installation**, scoped to
-   the permissions granted above, and is what's actually used to call the PR
-   comment API.
+1. Sign a short-lived JWT (RS256, `iss` = App ID `4388945`, `exp` ≈ 9 minutes)
+   using the private key from `infra-agent-github-app-key-dev`. This JWT
+   authenticates as the **App itself**. `scripts/post_pr_comment.py` does this
+   with `openssl dgst -sign` rather than a JWT library — one RSA signature
+   doesn't justify a new Python dependency in the build image.
+2. Exchange that JWT for a short-lived **installation access token** via
+   `POST /app/installations/{installation_id}/access_tokens`. This token
+   authenticates as the **App acting on a specific repo installation**, scoped
+   to the permissions granted above, and is what's actually used to call the
+   PR comment API.
 
-Installation access tokens expire in ~1 hour and are not persisted — the agent
-re-mints one per review run rather than caching it.
+Installation access tokens expire in ~1 hour and are not persisted — a fresh
+one is minted per review run rather than cached.
 
 ## Webhook signature verification
 
@@ -97,13 +101,29 @@ forged events from anyone.
 
 ## How PR comments are posted
 
-Not yet built (Phase 2). Design: once the Cloud Build review pipeline (triggered
-by the webhook handler) finishes and writes its artifacts to the
-`data-platform-aab-dev-review-artifacts` bucket, the agent reads them, renders a
-single templated comment, and posts it via the GitHub REST API
-(`POST /repos/{owner}/{repo}/issues/{pr_number}/comments`) using the installation
-access token from the flow above. One comment per review run — no comment
-threading/editing logic for the MVP.
+The comment is posted from the last step of `cloudbuild/review.cloudbuild.yaml`
+(`scripts/post_pr_comment.py`), not by the Cloud Run agent — a deliberate
+deviation from the original design (agent reads artifacts after the build
+finishes). The agent's webhook call returns before the build starts; without
+Pub/Sub wired up, it has no way to know when the build is done. Posting from
+inside the build itself sidesteps that: the `policy-checks` and `plan-summary`
+steps write their output to local files (`findings.json`, `summary.md`), and
+the final step reads those files directly and posts one comment combining
+both, using the same JWT/installation-token flow described above (minted with
+`sa-cb-plan-dev`'s access to `infra-agent-github-app-key-dev`, not the agent's).
+
+The Cloud Run agent's role ends at triggering the build
+(`app/cloudbuild_client.py`): it calls the Cloud Build API with the PR's exact
+commit SHA, sourced through Cloud Build's own GitHub connection
+(`agent-hosting/cloudbuild_connection.tf`, Developer Connect — a separate
+GitHub integration from this App, installed only for fetching source, not for
+posting comments). `_PR_NUMBER`/`_REPO_FULL_NAME` substitutions carry the PR
+identity through to the comment step.
+
+Builds not triggered by a PR (e.g. manual `gcloud builds submit` runs) leave
+those substitutions empty; `post_pr_comment.py` treats that as "skip", not an
+error. One comment per review run — no comment threading/editing logic for
+the MVP.
 
 ## Optional GitHub Checks integration
 

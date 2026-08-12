@@ -1,0 +1,51 @@
+steps:
+  - id: terraform-fmt
+    name: hashicorp/terraform:1.15.8
+    args: ['fmt', '-check', '-recursive']
+
+  - id: terraform-init
+    name: hashicorp/terraform:1.15.8
+    args: ['init', '-backend-config=environments/dev.tfbackend']
+
+  - id: terraform-validate
+    name: hashicorp/terraform:1.15.8
+    args: ['validate']
+
+  - id: terraform-plan
+    name: hashicorp/terraform:1.15.8
+    args: ['plan', '-var-file=environments/dev.tfvars', '-out=tfplan']
+
+  - id: terraform-plan-json
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    args: ['-c', 'terraform show -json tfplan > plan.json']
+
+  - id: policy-checks
+    name: python:3.12-slim
+    entrypoint: sh
+    args: ['-c', 'python3 scripts/policy_checks.py plan.json | tee findings.json']
+
+  - id: plan-summary
+    name: python:3.12-slim
+    entrypoint: sh
+    args: ['-c', 'python3 scripts/summarize_plan.py plan.json | tee summary.md']
+
+  - id: pr-comment
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: python3
+    args: ['scripts/post_pr_comment.py']
+    env:
+      - 'PR_NUMBER=$_PR_NUMBER'
+      - 'REPO_FULL_NAME=$_REPO_FULL_NAME'
+
+serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/sa-cb-plan-dev@$PROJECT_ID.iam.gserviceaccount.com'
+
+substitutions:
+  # Set by cloudbuild_client.py when a PR triggers the build; empty for
+  # manual `gcloud builds submit` runs, which post_pr_comment.py treats as
+  # "skip commenting" rather than an error.
+  _PR_NUMBER: ''
+  _REPO_FULL_NAME: 'sinex-cloud/infrastructure-terraform-gcp'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

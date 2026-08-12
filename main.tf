@@ -7,9 +7,7 @@ module "data_platform" {
 }
 
 module "agent_hosting" {
-  # TODO: v0.3.0 doesn't exist yet — tag it in gcp-foundation-module once
-  # the agent-hosting/ subfolder is committed and pushed, then this resolves.
-  source = "git::https://github.com/sinex-cloud/gcp-foundation-module.git//agent-hosting?ref=v0.3.0"
+  source = "git::https://github.com/sinex-cloud/gcp-foundation-module.git//agent-hosting?ref=v0.3.1"
 
   env     = var.env
   project = var.project

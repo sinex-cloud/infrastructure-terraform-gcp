@@ -1,1 +1,2 @@
-bucket = "data-platform-aab-dev-tfstate"
+bucket                      = "data-platform-aab-dev-tfstate"
+impersonate_service_account = "sa-tf-deployer-dev@data-platform-aab-dev.iam.gserviceaccount.com"

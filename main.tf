@@ -13,5 +13,3 @@ module "agent_hosting" {
   project = var.project
   region  = var.region
 }
-
-# test: verify review pipeline end-to-end

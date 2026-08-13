@@ -39,20 +39,16 @@ def test_make_jwt_has_three_dot_separated_parts():
     assert jwt.count(".") == 2
 
 
-def test_render_comment_with_findings():
-    findings = {"status": "failed", "findings": [
-        {"severity": "high", "rule": "no_broad_iam_role", "resource": "a.b", "message": "roles/owner is too broad."},
-    ]}
-    comment = render_comment(findings, "## Terraform Plan Summary\n")
+def test_render_comment_failed_status():
+    comment = render_comment({"status": "failed"}, "**Risk level:** High")
     assert "❌ failed" in comment
-    assert "no_broad_iam_role" in comment
-    assert "## Terraform Plan Summary" in comment
+    assert "**Risk level:** High" in comment
 
 
-def test_render_comment_no_findings():
-    comment = render_comment({"status": "passed", "findings": []}, "summary")
+def test_render_comment_passed_status():
+    comment = render_comment({"status": "passed"}, "**Risk level:** Low")
     assert "✅ passed" in comment
-    assert "No findings." in comment
+    assert "**Risk level:** Low" in comment
 
 
 if __name__ == "__main__":

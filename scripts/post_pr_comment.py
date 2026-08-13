@@ -72,18 +72,10 @@ def github_api(url: str, token: str, method: str = "GET", body: dict | None = No
         return json.loads(resp.read())
 
 
-def render_comment(findings: dict, summary_md: str) -> str:
-    status = findings.get("status", "unknown")
-    badge = "✅ passed" if status == "passed" else "❌ failed"
-    lines = [f"## Policy Checks: {badge}", ""]
-    rows = findings.get("findings", [])
-    if rows:
-        lines += ["| Severity | Rule | Resource | Message |", "|---|---|---|---|"]
-        lines += [f"| {f['severity']} | {f['rule']} | `{f['resource']}` | {f['message']} |" for f in rows]
-    else:
-        lines.append("No findings.")
-    lines += ["", summary_md]
-    return "\n".join(lines)
+def render_comment(findings: dict, review_md: str) -> str:
+    """Deterministic badge on top (source of truth), AI review explains below."""
+    badge = "✅ passed" if findings.get("status") == "passed" else "❌ failed"
+    return f"## Policy Checks: {badge}\n\n{review_md}"
 
 
 def main():
@@ -94,8 +86,8 @@ def main():
         return
 
     findings = json.loads(open("findings.json").read())
-    summary_md = open("summary.md").read()
-    comment = render_comment(findings, summary_md)
+    review_md = open("review.md").read()
+    comment = render_comment(findings, review_md)
 
     private_key = fetch_private_key()
     jwt = make_jwt(private_key)

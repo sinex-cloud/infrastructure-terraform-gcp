@@ -22,6 +22,7 @@ dev-only). Parameterize once a second environment exists.
 """
 import json
 import logging
+import urllib.error
 import urllib.request
 
 import yaml
@@ -85,6 +86,10 @@ def trigger_review_build(pr_event: dict) -> None:
         data=body, method="POST",
         headers={"Authorization": f"Bearer {get_access_token()}", "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req) as resp:
-        result = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        logger.error("Cloud Build API rejected the build: %s %s", e.code, e.read().decode())
+        raise
     logger.info("triggered review build for %s#%s: %s", pr_event["repo"], pr_event["pr_number"], result.get("metadata"))

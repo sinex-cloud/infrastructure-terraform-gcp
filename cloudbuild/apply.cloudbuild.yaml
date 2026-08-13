@@ -1,0 +1,64 @@
+steps:
+  - id: terraform-init
+    name: hashicorp/terraform:1.15.8
+    args: ['init', '-backend-config=environments/dev.tfbackend']
+
+  - id: terraform-plan
+    name: hashicorp/terraform:1.15.8
+    args: ['plan', '-var-file=environments/dev.tfvars', '-out=tfplan']
+
+  - id: terraform-plan-json
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    args: ['-c', 'terraform show -json tfplan > plan.json']
+
+  - id: policy-checks
+    name: python:3.12-slim
+    entrypoint: sh
+    args: ['-c', 'python3 scripts/policy_checks.py plan.json | tee findings.json']
+
+  - id: policy-gate
+    name: python:3.12-slim
+    entrypoint: sh
+    # policy_checks.py only reports; it never blocks (review pipeline wants
+    # findings visible even on failure). Apply is destructive, so gate here:
+    # abort before terraform-apply if any high-severity finding is present.
+    args: ['-c', 'python3 -c "import json,sys; sys.exit(1 if json.load(open(\"findings.json\"))[\"status\"] == \"failed\" else 0)"']
+
+  - id: terraform-apply
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    # Never fails the build directly -- exit code goes to a file so
+    # post-apply-comment (below) still runs and reports the failure,
+    # instead of Cloud Build skipping straight to build FAILURE.
+    args: ['-c', 'terraform apply -no-color tfplan > apply_output.txt 2>&1; echo $? > apply_status.txt; cat apply_output.txt']
+    # ponytail: applies the plan generated in *this* run, not the exact
+    # plan the human approved in the PR comment -- state could have moved
+    # between review and approval. Upgrade path: review pipeline uploads
+    # plan.json to review-artifacts bucket (cb_plan already has write
+    # access), this pipeline downloads it and diffs before applying.
+
+  - id: post-apply-comment
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: python3
+    args: ['scripts/post_apply_comment.py']
+    env:
+      - 'PR_NUMBER=$_PR_NUMBER'
+      - 'REPO_FULL_NAME=$_REPO_FULL_NAME'
+
+  - id: apply-result-gate
+    name: python:3.12-slim
+    entrypoint: sh
+    # Fails the build (after the comment above has already posted) if
+    # terraform-apply's captured exit code was non-zero.
+    args: ['-c', 'exit $(cat apply_status.txt)']
+
+serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/sa-cb-apply-dev@$PROJECT_ID.iam.gserviceaccount.com'
+
+substitutions:
+  # Set by cloudbuild_client.py when the approval label triggers the build.
+  _PR_NUMBER: ''
+  _REPO_FULL_NAME: 'sinex-cloud/infrastructure-terraform-gcp'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -36,7 +36,8 @@ CONNECTED_REPOSITORY = (
     f"projects/{PROJECT}/locations/{REGION}/connections/infra-review-dev"
     "/repositories/infrastructure-terraform-gcp"
 )
-PIPELINE_CONFIG_PATH = "cloudbuild/review.cloudbuild.yaml"
+REVIEW_PIPELINE_CONFIG_PATH = "cloudbuild/review.cloudbuild.yaml"
+APPLY_PIPELINE_CONFIG_PATH = "cloudbuild/apply.cloudbuild.yaml"
 
 
 def _metadata_get(path: str) -> str:
@@ -50,13 +51,13 @@ def get_access_token() -> str:
     return json.loads(token_json)["access_token"]
 
 
-def fetch_pipeline_config(pr_event: dict) -> dict:
-    url = f"https://raw.githubusercontent.com/{pr_event['repo']}/{pr_event['commit_sha']}/{PIPELINE_CONFIG_PATH}"
+def fetch_pipeline_config(pr_event: dict, config_path: str) -> dict:
+    url = f"https://raw.githubusercontent.com/{pr_event['repo']}/{pr_event['commit_sha']}/{config_path}"
     with urllib.request.urlopen(url) as resp:
         return yaml.safe_load(resp.read())
 
 
-def build_request_body(pr_event: dict, pipeline_config: dict) -> dict:
+def build_request_body(pr_event: dict, pipeline_config: dict, extra_substitutions: dict | None = None) -> dict:
     body = {
         "source": {
             "connectedRepository": {
@@ -68,8 +69,7 @@ def build_request_body(pr_event: dict, pipeline_config: dict) -> dict:
         "steps": pipeline_config["steps"],
         "substitutions": {
             **pipeline_config.get("substitutions", {}),
-            "_PR_NUMBER": str(pr_event["pr_number"]),
-            "_REPO_FULL_NAME": pr_event["repo"],
+            **(extra_substitutions or {}),
         },
     }
     for optional_field in ("serviceAccount", "options"):
@@ -78,9 +78,9 @@ def build_request_body(pr_event: dict, pipeline_config: dict) -> dict:
     return body
 
 
-def trigger_review_build(pr_event: dict) -> None:
-    pipeline_config = fetch_pipeline_config(pr_event)
-    body = json.dumps(build_request_body(pr_event, pipeline_config)).encode()
+def _trigger_build(pr_event: dict, config_path: str, extra_substitutions: dict, log_label: str) -> None:
+    pipeline_config = fetch_pipeline_config(pr_event, config_path)
+    body = json.dumps(build_request_body(pr_event, pipeline_config, extra_substitutions)).encode()
     req = urllib.request.Request(
         f"https://cloudbuild.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/builds",
         data=body, method="POST",
@@ -92,4 +92,14 @@ def trigger_review_build(pr_event: dict) -> None:
     except urllib.error.HTTPError as e:
         logger.error("Cloud Build API rejected the build: %s %s", e.code, e.read().decode())
         raise
-    logger.info("triggered review build for %s#%s: %s", pr_event["repo"], pr_event["pr_number"], result.get("metadata"))
+    logger.info("triggered %s build for %s#%s: %s", log_label, pr_event["repo"], pr_event["pr_number"], result.get("metadata"))
+
+
+def trigger_review_build(pr_event: dict) -> None:
+    extra_substitutions = {"_PR_NUMBER": str(pr_event["pr_number"]), "_REPO_FULL_NAME": pr_event["repo"]}
+    _trigger_build(pr_event, REVIEW_PIPELINE_CONFIG_PATH, extra_substitutions, "review")
+
+
+def trigger_apply_build(pr_event: dict) -> None:
+    extra_substitutions = {"_PR_NUMBER": str(pr_event["pr_number"]), "_REPO_FULL_NAME": pr_event["repo"]}
+    _trigger_build(pr_event, APPLY_PIPELINE_CONFIG_PATH, extra_substitutions, "apply")

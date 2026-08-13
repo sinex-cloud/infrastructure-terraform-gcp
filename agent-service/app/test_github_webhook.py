@@ -2,7 +2,7 @@
 import hashlib
 import hmac
 
-from app.github_webhook import extract_pr_event, verify_signature
+from app.github_webhook import extract_apply_event, extract_pr_event, verify_signature
 
 
 def _sign(secret: str, body: bytes) -> str:
@@ -43,7 +43,34 @@ def test_extract_pr_event():
     assert extract_pr_event(unsupported_action_payload) is None
 
 
+def test_extract_apply_event():
+    payload = {
+        "action": "labeled",
+        "label": {"name": "approved-for-apply"},
+        "number": 42,
+        "repository": {"full_name": "sinex-cloud/infrastructure-terraform-gcp"},
+        "pull_request": {"draft": False, "head": {"ref": "feature/x", "sha": "abc123"}},
+    }
+    assert extract_apply_event(payload) == {
+        "repo": "sinex-cloud/infrastructure-terraform-gcp",
+        "pr_number": 42,
+        "branch": "feature/x",
+        "commit_sha": "abc123",
+        "action": "labeled",
+    }
+
+    other_label_payload = {**payload, "label": {"name": "bug"}}
+    assert extract_apply_event(other_label_payload) is None
+
+    wrong_action_payload = {**payload, "action": "opened"}
+    assert extract_apply_event(wrong_action_payload) is None
+
+    draft_payload = {**payload, "pull_request": {**payload["pull_request"], "draft": True}}
+    assert extract_apply_event(draft_payload) is None
+
+
 if __name__ == "__main__":
     test_verify_signature()
     test_extract_pr_event()
+    test_extract_apply_event()
     print("ok")

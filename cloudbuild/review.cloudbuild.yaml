@@ -30,6 +30,14 @@ steps:
     entrypoint: sh
     args: ['-c', 'python3 scripts/summarize_plan.py plan.json | tee summary.md']
 
+  - id: review-generation
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: sh
+    args: ['-c', 'python3 scripts/review_generator.py plan.json findings.json | tee review.md']
+    env:
+      - 'MODEL_API_URL=$_MODEL_API_URL'
+      - 'MODEL_NAME=$_MODEL_NAME'
+
   - id: pr-comment
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: python3
@@ -46,6 +54,11 @@ substitutions:
   # "skip commenting" rather than an error.
   _PR_NUMBER: ''
   _REPO_FULL_NAME: 'sinex-cloud/infrastructure-terraform-gcp'
+  # Gemini's OpenAI-compatible endpoint (https://ai.google.dev/gemini-api/docs/openai).
+  # The API key itself is never here -- it's in Secret Manager, fetched by
+  # review_generator.py at build time.
+  _MODEL_API_URL: 'https://generativelanguage.googleapis.com/v1beta/openai'
+  _MODEL_NAME: 'gemini-flash-lite-latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY

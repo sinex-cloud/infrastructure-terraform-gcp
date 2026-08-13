@@ -7,7 +7,7 @@ module "data_platform" {
 }
 
 module "agent_hosting" {
-  source = "git::https://github.com/sinex-cloud/gcp-foundation-module.git//agent-hosting?ref=v0.3.5"
+  source = "git::https://github.com/sinex-cloud/gcp-foundation-module.git//agent-hosting?ref=v0.3.6"
 
   env     = var.env
   project = var.project

@@ -1,7 +1,8 @@
 import subprocess
 import tempfile
 
-from post_pr_comment import b64url, make_jwt, render_comment, sign_rs256
+from github_app import b64url, make_jwt, sign_rs256
+from post_pr_comment import render_comment
 
 
 def gen_test_key() -> bytes:

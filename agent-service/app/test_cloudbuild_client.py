@@ -24,10 +24,18 @@ def test_source_pins_exact_commit():
     assert body["source"]["connectedRepository"]["revision"] == "abc123"
 
 
-def test_substitutions_carry_pr_number_and_repo():
-    body = build_request_body(make_pr_event(pr_number=7, repo="sinex-cloud/other"), make_pipeline_config())
+def test_extra_substitutions_carry_pr_number_and_repo():
+    extra = {"_PR_NUMBER": "7", "_REPO_FULL_NAME": "sinex-cloud/other"}
+    body = build_request_body(make_pr_event(pr_number=7, repo="sinex-cloud/other"), make_pipeline_config(), extra)
     assert body["substitutions"]["_PR_NUMBER"] == "7"
     assert body["substitutions"]["_REPO_FULL_NAME"] == "sinex-cloud/other"
+
+
+def test_extra_substitutions_omitted_when_none():
+    # apply.cloudbuild.yaml has no _PR_NUMBER/_REPO_FULL_NAME usage -- Cloud
+    # Build errors on unused substitutions, so none should be injected.
+    body = build_request_body(make_pr_event(), make_pipeline_config())
+    assert body["substitutions"] == make_pipeline_config()["substitutions"]
 
 
 def test_steps_forwarded_inline_not_filename():

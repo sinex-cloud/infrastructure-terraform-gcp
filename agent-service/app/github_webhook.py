@@ -4,6 +4,7 @@ import hmac
 import os
 
 SUPPORTED_ACTIONS = {"opened", "synchronize", "reopened", "ready_for_review"}
+APPROVAL_LABEL = "approved-for-apply"
 ALLOWED_REPOS = {
     r.strip()
     for r in os.environ.get("ALLOWED_REPOS", "sinex-cloud/infrastructure-terraform-gcp").split(",")
@@ -20,10 +21,8 @@ def verify_signature(secret: str, raw_body: bytes, signature_header: str | None)
     return hmac.compare_digest(expected, got)
 
 
-def extract_pr_event(payload: dict) -> dict | None:
-    """Return PR metadata if this payload is a supported, actionable pull_request event; else None."""
-    if payload.get("action") not in SUPPORTED_ACTIONS:
-        return None
+def _pr_metadata(payload: dict) -> dict | None:
+    """Shared PR metadata extraction: draft/repo-allowlist filtering, common to review and apply events."""
     pr = payload.get("pull_request", {})
     if pr.get("draft"):
         return None
@@ -37,3 +36,19 @@ def extract_pr_event(payload: dict) -> dict | None:
         "commit_sha": pr.get("head", {}).get("sha"),
         "action": payload.get("action"),
     }
+
+
+def extract_pr_event(payload: dict) -> dict | None:
+    """Return PR metadata if this payload is a supported, actionable pull_request event; else None."""
+    if payload.get("action") not in SUPPORTED_ACTIONS:
+        return None
+    return _pr_metadata(payload)
+
+
+def extract_apply_event(payload: dict) -> dict | None:
+    """Return PR metadata if this payload is the approval label being added; else None."""
+    if payload.get("action") != "labeled":
+        return None
+    if payload.get("label", {}).get("name") != APPROVAL_LABEL:
+        return None
+    return _pr_metadata(payload)

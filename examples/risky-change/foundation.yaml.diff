@@ -1,0 +1,8 @@
+--- a/foundation-config/foundation.yaml
++++ b/foundation-config/foundation.yaml
+@@ additional_project_permissions:
++  - role: owner
++    environments: [dev]
++    members:
++      users:
++        - someone@example.com

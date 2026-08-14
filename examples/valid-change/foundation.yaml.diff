@@ -1,0 +1,11 @@
+--- a/foundation-config/foundation.yaml
++++ b/foundation-config/foundation.yaml
+@@ buckets:
++  demo-analytics-export:
++    location: europe-west1
++    environments: [dev]
++    permissions:
++      - role: storage.objectViewer
++        members:
++          users:
++            - ahmed.brini.ar@gmail.com

@@ -1,0 +1,11 @@
+{
+  "status": "failed",
+  "findings": [
+    {
+      "severity": "high",
+      "rule": "no_broad_iam_role",
+      "message": "roles/owner is too broad for google_project_iam_member.",
+      "resource": "module.data_platform.google_project_iam_member.project[\"owner_user:someone@example.com\"]"
+    }
+  ]
+}

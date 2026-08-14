@@ -15,7 +15,7 @@ steps:
   - id: policy-checks
     name: python:3.12-slim
     entrypoint: sh
-    args: ['-c', 'python3 scripts/policy_checks.py plan.json | tee findings.json']
+    args: ['-c', 'pip install -q PyYAML==6.0.3 && python3 scripts/policy_checks.py plan.json | tee findings.json']
 
   - id: policy-gate
     name: python:3.12-slim

@@ -131,9 +131,10 @@ pytest scripts/ agent-service/app/
   `pull_request.merged`; enforced by convention, not code.
 - `terraform-apply` regenerates its own plan rather than applying the exact
   plan a human reviewed.
-- `policy_checks.py` covers broad IAM, public access, and required labels
-  only — naming-convention, invalid-YAML, and module-usage checks aren't
-  implemented yet.
+- `policy_checks.py` doesn't catch raw YAML syntax errors in
+  `foundation.yaml` — those already fail `terraform plan` before this
+  script ever runs. It does cover schema/environment validity, naming
+  conventions, and direct-resource-vs-module on top of the core checks.
 
 Full list, with rationale: `docs/technical_design.md`'s Known Limitations
 section.

@@ -176,10 +176,11 @@ process convention, not something the code enforces (see Known Limitations).
   `apply.cloudbuild.yaml` comment): have the review pipeline upload
   `plan.json` to the review-artifacts bucket, have the apply pipeline
   download and diff it before applying.
-- `policy_checks.py` implements broad-IAM, public-access, and
-  required-label checks only — naming-convention, invalid-YAML, and
-  "direct resource instead of approved module" checks from the original
-  scope aren't implemented yet.
+- `policy_checks.py` covers broad IAM, public access, required labels,
+  naming conventions, direct-resource-vs-module, and foundation.yaml schema
+  and environment-configuration validity. It catches malformed or
+  logically-broken YAML, not raw YAML syntax errors — those already fail
+  `terraform plan` itself, before this script ever runs.
 - Everything in `agent-hosting` (the review/apply platform itself) is
   dev-only by design; there's no review/apply automation for other
   environments, only Terraform *config* for them (`environments/int.*`).

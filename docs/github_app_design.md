@@ -1,7 +1,7 @@
 # GitHub App Design
 
-Deliverable 2. Documents the registered GitHub App and the design it implies for
-the agent service (Phase 2/3 build out the code; this records what's already live).
+Documents the registered GitHub App and the design it implies for the agent
+service.
 
 ## App identity
 
@@ -22,9 +22,8 @@ Repository permissions only; no organization or account permissions.
 | Contents | Read-only | Read repo content / identify changed files for the diff. Not write — the apply pipeline (Phase 4) uses Cloud Build's own service account, never this App's installation token, so the App never needs to push code. |
 | Pull requests | Read & write | Read for PR metadata; write is what lets the agent post the review comment. |
 
-**Explicitly not granted**: Checks (`checks:write`). The scope document lists GitHub
-Checks integration as optional/"improved version"; the phase plan cuts it for the
-MVP deadline. A PR comment is the full review surface for now — see "Optional
+**Explicitly not granted**: Checks (`checks:write`). Checks integration is out of
+scope for the MVP. A PR comment is the full review surface for now — see "Optional
 Checks integration" below.
 
 ## Required webhook events
@@ -45,9 +44,7 @@ feature is also cut for this phase.
 https://infra-review-agent-dev-654528170038.europe-west1.run.app/webhook/github
 ```
 
-Path is `/webhook/github` specifically (not just `/webhook`) — matches the route
-specified in the project scope document, so Phase 2's handler code has a fixed
-target to implement against. Cloud Run's URL itself is stable per revision/service
+Path is `/webhook/github` specifically (not just `/webhook`). Cloud Run's URL itself is stable per revision/service
 (not per deployment), so this endpoint doesn't change as the container image is
 updated.
 
@@ -127,9 +124,8 @@ the MVP.
 
 ## Optional GitHub Checks integration
 
-Not implemented, not planned before the deadline. The scope document lists Checks
-runs (`in_progress` → `completed` status) as an "improved version" feature on top
-of the MVP's PR-comment-only review. Cut to protect the Phase 2 timeline; the App
+Not implemented; out of scope for the MVP. Checks runs (`in_progress` →
+`completed` status) would sit on top of the MVP's PR-comment-only review. The App
 was deliberately not granted the `checks:write` permission it would require, so
 enabling this later means both a permission change on the App and new agent code,
 not just new code.

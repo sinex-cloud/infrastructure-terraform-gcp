@@ -119,12 +119,12 @@ Open a PR with the change. The review pipeline plans it, runs the policy checks 
 
 ## Running the tests
 
-CI runs these tests, plus `terraform fmt` and `terraform validate`, on every push and pull request. To run the tests locally, note that the agent service tests import `app`, so they have to run from inside `agent-service/`:
+CI runs these tests, plus `terraform fmt` and `terraform validate`, on every push and pull request. To run the tests locally, note that the agent service tests import `app`, so they have to run from inside `agent-service/` with `python -m pytest`:
 
 ```bash
 pip install -r agent-service/requirements.txt pytest
-pytest scripts/
-cd agent-service && pytest app/
+python -m pytest scripts/
+cd agent-service && python -m pytest app/
 ```
 
 ## Known limitations

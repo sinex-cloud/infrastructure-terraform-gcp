@@ -17,8 +17,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r agent-service/requirements.txt pytest
-      - run: pytest scripts/
-      - run: pytest app/
+      - run: python -m pytest scripts/
+      - run: python -m pytest app/
         working-directory: agent-service
 
   terraform:

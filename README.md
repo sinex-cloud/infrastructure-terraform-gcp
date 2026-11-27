@@ -1,5 +1,7 @@
 <p align="center"><img src="docs/assets/hero.svg" alt="infrastructure-terraform-gcp: Terraform PRs that review themselves" width="100%"></p>
 
+<p align="center"><a href="https://github.com/sinex-cloud/infrastructure-terraform-gcp/actions/workflows/ci.yml"><img src="https://github.com/sinex-cloud/infrastructure-terraform-gcp/actions/workflows/ci.yml/badge.svg" alt="CI status"></a></p>
+
 **Deterministic checks decide pass or fail. The AI only explains. A human approves the apply.**
 
 ## How it works
@@ -117,7 +119,7 @@ Open a PR with the change. The review pipeline plans it, runs the policy checks 
 
 ## Running the tests
 
-There is no CI workflow for these yet. Run them locally. The agent service tests import `app`, so they have to run from inside `agent-service/`:
+CI runs these tests, plus `terraform fmt` and `terraform validate`, on every push and pull request. To run the tests locally, note that the agent service tests import `app`, so they have to run from inside `agent-service/`:
 
 ```bash
 pip install -r agent-service/requirements.txt pytest

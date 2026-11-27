@@ -85,7 +85,7 @@ Runs as `sa-cb-plan-dev`. Steps, in order:
 1. `terraform fmt -check -recursive`
 2. `terraform init` (dev backend)
 3. `terraform validate`
-4. `terraform plan -var-file=environments/dev.tvars -out=tfplan`
+4. `terraform plan -var-file=environments/dev.tfvars -out=tfplan`
 5. `terraform show -json tfplan > plan.json`
 6. `scripts/policy_checks.py plan.json` → `findings.json`
 7. `scripts/summarize_plan.py plan.json` → `summary.md`

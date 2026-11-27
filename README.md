@@ -1,20 +1,43 @@
-# infrastructure-terraform-gcp
+<p align="center"><img src="docs/assets/hero.svg" alt="infrastructure-terraform-gcp: Terraform PRs that review themselves" width="100%"></p>
 
-GitHub App + Cloud Run agent that AI-reviews Terraform pull requests against
-a GCP project, gated by deterministic policy checks, with `terraform apply`
-running only after a human adds an approval label. Uses reusable modules
-from [`gcp-foundation-module`](https://github.com/sinex-cloud/gcp-foundation-module).
+**Deterministic checks decide pass or fail. The AI only explains. A human approves the apply.**
 
-Full architecture: [`docs/technical_design.md`](docs/technical_design.md).
-GitHub App details: [`docs/github_app_design.md`](docs/github_app_design.md).
-Apply pipeline detail: [`docs/apply_workflow.md`](docs/apply_workflow.md).
+## How it works
 
-## Setup
+<p align="center"><img src="docs/assets/flow.svg" alt="Flow from pull request to review comment, then human approval and apply" width="100%"></p>
 
-Requires: `terraform` >= 1.15, `gcloud`, a GCP project with a deployment
-service account already created (`sa-tf-deployer-<env>`, impersonated by
-Terraform via `provider.tf` — no local key files) and a GCS backend bucket
-matching `environments/<env>.tfbackend`.
+## Try the policy checker
+
+No GCP needed. This is the real script, run on the example plans in [`examples/`](examples/).
+
+<p align="center"><img src="docs/assets/terminal.svg" alt="Terminal recording of the policy checker blocking a roles/owner grant and passing a valid change" width="100%"></p>
+
+```bash
+python3 scripts/policy_checks.py examples/risky-change/plan.json
+python3 scripts/policy_checks.py examples/valid-change/plan.json
+```
+
+## What it posts on the pull request
+
+<p align="center"><img src="docs/assets/comments.svg" alt="Two real comments posted by the review agent on PR #5" width="100%"></p>
+
+See them live on [PR #5](https://github.com/sinex-cloud/infrastructure-terraform-gcp/pull/5). The demo project ran on a Google Cloud free trial and is no longer live.
+
+## Design
+
+| Document | Covers |
+|---|---|
+| [`docs/technical_design.md`](docs/technical_design.md) | Architecture, pipelines, known limitations |
+| [`docs/github_app_design.md`](docs/github_app_design.md) | GitHub App permissions and auth flow |
+| [`docs/apply_workflow.md`](docs/apply_workflow.md) | Apply pipeline and approval step |
+| [`examples/README.md`](examples/README.md) | Step-by-step demo scenario |
+
+Uses reusable modules from [`gcp-foundation-module`](https://github.com/sinex-cloud/gcp-foundation-module), pinned by git tag.
+
+<details>
+<summary><b>Setup and deployment</b></summary>
+
+You need Terraform, `gcloud`, a GCP project with a deployment service account named `sa-tf-deployer-<env>` and a GCS bucket for state that matches `environments/<env>.tfbackend`. Terraform impersonates the service account (see `provider.tf`), so no key files are involved. `versions.tf` requires Terraform 1.3.0 or newer, and the pipelines use 1.15.8.
 
 ```bash
 terraform init -backend-config=environments/dev.tfbackend
@@ -22,47 +45,19 @@ terraform plan -var-file=environments/dev.tfvars
 terraform apply -var-file=environments/dev.tfvars
 ```
 
-In practice this runs through Cloud Build (`cloudbuild/review.cloudbuild.yaml`,
-`cloudbuild/apply.cloudbuild.yaml`), not by hand — see below.
+In practice these commands run through Cloud Build (`cloudbuild/review.cloudbuild.yaml` and `cloudbuild/apply.cloudbuild.yaml`), not by hand.
 
-## Local development
+### GitHub App
 
-The agent service (`agent-service/app/`) is a plain FastAPI app with no GCP
-dependency at request-handling time other than the metadata server for
-token minting:
-
-```bash
-cd agent-service
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-`scripts/` (policy checks, plan summary, AI review generation, PR comment
-posting) run standalone with just `PyYAML` and stdlib — no service needed
-to test them locally.
-
-## GitHub App setup
-
-The App (`sinex-infra-review-agent-dev`) is created once by hand in GitHub
-settings, not by Terraform — see `docs/github_app_design.md` for the exact
-permission set (`Contents: read`, `Pull requests: read & write`, `Metadata:
-read`) and the single subscribed webhook event (`Pull request`). After
-creation:
+The App (`sinex-infra-review-agent-dev`) is created once by hand in the GitHub settings. Terraform does not manage it. The permissions are `Contents: read`, `Pull requests: read & write` and `Metadata: read`, and it subscribes to the `Pull request` webhook event. The details are in [`docs/github_app_design.md`](docs/github_app_design.md). After creating it:
 
 1. Install the App on the target repo.
-2. Store its webhook secret and private key in Secret Manager
-   (`infra-agent-github-webhook-secret-dev`, `infra-agent-github-app-key-dev`
-   — both created as empty containers by `gcp-foundation-module/agent-hosting/secrets.tf`,
-   values added by hand, never in Terraform state).
-3. Point the App's webhook URL at the deployed Cloud Run service's
-   `/webhook/github` path.
+2. Store its webhook secret and private key in Secret Manager as `infra-agent-github-webhook-secret-dev` and `infra-agent-github-app-key-dev`. Terraform creates both as empty secrets (`gcp-foundation-module/agent-hosting/secrets.tf`). You add the values by hand, so they never appear in Terraform state.
+3. Point the App's webhook URL at the `/webhook/github` path of the deployed Cloud Run service.
 
-## Cloud Run deployment
+### Cloud Run
 
-`agent-hosting/agent.tf` provisions the Cloud Run service but deliberately
-doesn't manage its container image (`lifecycle.ignore_changes` on the image
-field) — Terraform sets up everything else (env vars, secret mounts, IAM),
-the image itself is built and deployed separately:
+`agent-hosting/agent.tf` creates the Cloud Run service but ignores changes to its container image (`lifecycle.ignore_changes`). Terraform sets up the environment variables, secret mounts and IAM. The image is built and deployed separately, so Terraform never reverts a manual deploy:
 
 ```bash
 cd agent-service
@@ -70,20 +65,27 @@ gcloud builds submit --tag <region>-docker.pkg.dev/<project>/infra-agent-images-
 gcloud run deploy infra-review-agent-dev --image <region>-docker.pkg.dev/<project>/infra-agent-images-dev/agent:<tag>
 ```
 
-## Cloud Build setup
+### Cloud Build
 
-Cloud Build reaches this repo through a Developer Connect connection
-(`agent-hosting/cloudbuild_connection.tf`) — separate from the GitHub App
-above; it only fetches source, never posts comments. The agent service
-triggers builds directly via the Cloud Build API (`POST .../builds`), not
-through a `BuildTrigger` resource, so the pipeline YAML is fetched from the
-PR's exact commit each time rather than a fixed trigger config.
+Cloud Build reaches this repo through a Developer Connect connection (`agent-hosting/cloudbuild_connection.tf`). The connection only fetches source. It is separate from the GitHub App, which posts the comments. The agent service starts builds directly through the Cloud Build API (`POST .../builds`) instead of using a `BuildTrigger`. That way the pipeline YAML comes from the exact commit of the PR.
 
-## Adding a dataset, bucket, or IAM permission
+### Local development
 
-Everything in `gcp-foundation-module`'s data platform is driven by
-`foundation-config/foundation.yaml` — no direct `.tf` edits needed for
-routine changes:
+The agent service is a plain FastAPI app. At request time its only GCP dependency is the metadata server, which it uses to mint tokens.
+
+```bash
+cd agent-service
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+The scripts in `scripts/` need only `PyYAML` and the standard library.
+
+</details>
+
+## Adding a dataset, bucket or IAM permission
+
+The data platform is driven by `foundation-config/foundation.yaml`, so routine changes need no `.tf` edits:
 
 ```yaml
 managed_datasets:
@@ -111,40 +113,23 @@ additional_project_permissions:
       users: [someone@example.com]
 ```
 
-Open a PR with the change — the review pipeline plans it, runs policy
-checks, and posts an AI-generated review before anyone approves the apply.
+Open a PR with the change. The review pipeline plans it, runs the policy checks and posts the review before anyone approves the apply.
 
-## Running tests
+## Running the tests
 
-No CI wired up for this yet; run locally:
+There is no CI workflow for these yet. Run them locally. The agent service tests import `app`, so they have to run from inside `agent-service/`:
 
 ```bash
-pip install pytest
-pytest scripts/ agent-service/app/
+pip install -r agent-service/requirements.txt pytest
+pytest scripts/
+cd agent-service && pytest app/
 ```
 
 ## Known limitations
 
-- `int` environment is configured (`environments/int.tfvars`) but never
-  applied — dev is the only environment actually deployed.
-- The apply pipeline trusts the `approved-for-apply` label without checking
-  `pull_request.merged`; enforced by convention, not code.
-- `terraform-apply` regenerates its own plan rather than applying the exact
-  plan a human reviewed.
-- `policy_checks.py` doesn't catch raw YAML syntax errors in
-  `foundation.yaml` — those already fail `terraform plan` before this
-  script ever runs. It does cover schema/environment validity, naming
-  conventions, and direct-resource-vs-module on top of the core checks.
+- `int` is configured (`environments/int.tfvars`) but never applied. Dev is the only environment that is deployed.
+- The apply trigger trusts the `approved-for-apply` label and does not check `pull_request.merged`. The label is only added after a merge in practice, but nothing in the code enforces it.
+- `terraform-apply` makes its own fresh plan. It does not apply the exact plan a person reviewed, so state could change between review and approval.
+- `policy_checks.py` does not catch raw YAML syntax errors in `foundation.yaml`. `terraform plan` fails on those before the script runs.
 
-Full list, with rationale: `docs/technical_design.md`'s Known Limitations
-section.
-
-## Future improvements
-
-- Parameterize the hardcoded dev-only values (project, region, connection
-  name) across `agent-service/` for a second environment.
-- Diff the apply-time plan against the review-time plan instead of
-  regenerating it.
-- Finish the remaining policy checks.
-- Dataform analytics layer on top of the provisioned BigQuery datasets.
-- GitHub Check Runs instead of PR-comment-only review status.
+The full list, with the reasoning, is in the Known Limitations section of [`docs/technical_design.md`](docs/technical_design.md).
